@@ -20,6 +20,7 @@
 
     <modules>
         <module>nfe-emissao-service</module>
+        <module>nfe-commons</module>
     </modules>
 
     <properties>
