@@ -1,0 +1,55 @@
+# ============================================================
+# Prometheus Configuration - NFe Processing Platform
+# ============================================================
+
+global:
+  scrape_interval: 15s      # Frequencia de coleta de metricas
+  evaluation_interval: 15s  # Frequencia de avaliacao de regras
+
+# ============================================================
+# Scrape Configurations
+# ============================================================
+scrape_configs:
+
+  # ----------------------------------------------------------
+  # Prometheus (self-monitoring)
+  # ----------------------------------------------------------
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # ----------------------------------------------------------
+  # NFe Emissao Service (Spring Boot Actuator)
+  # Descomentar quando a aplicacao estiver rodando
+  # ----------------------------------------------------------
+  # - job_name: 'nfe-emissao-service'
+  #   metrics_path: '/actuator/prometheus'
+  #   scrape_interval: 10s
+  #   static_configs:
+  #     - targets: ['host.docker.internal:8080']
+  #   # Adicionar labels para identificacao
+  #   relabel_configs:
+  #     - source_labels: [__address__]
+  #       target_label: instance
+  #       replacement: 'nfe-emissao-service'
+
+  # ----------------------------------------------------------
+  # Kafka (via JMX Exporter - configurar se necessario)
+  # ----------------------------------------------------------
+  # - job_name: 'kafka'
+  #   static_configs:
+  #     - targets: ['kafka:7071']
+
+  # ----------------------------------------------------------
+  # PostgreSQL (via postgres_exporter - adicionar ao compose)
+  # ----------------------------------------------------------
+  # - job_name: 'postgres'
+  #   static_configs:
+  #     - targets: ['postgres-exporter:9187']
+
+  # ----------------------------------------------------------
+  # Redis (via redis_exporter - adicionar ao compose)
+  # ----------------------------------------------------------
+  # - job_name: 'redis'
+  #   static_configs:
+  #     - targets: ['redis-exporter:9121']
