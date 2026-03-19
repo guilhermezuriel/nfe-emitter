@@ -1,0 +1,198 @@
+# ============================================================
+# NF-e Processing Platform — Docker Compose
+# ============================================================
+# Uso:
+#   Fase 1 (fundação):    docker compose up -d postgres pgadmin
+#   Fase 2 (mensageria):  docker compose up -d postgres pgadmin zookeeper kafka kafka-ui
+#   Fase 4 (PDF/storage): docker compose up -d postgres pgadmin zookeeper kafka kafka-ui minio
+#   Fase 7 (completo):    docker compose up -d
+# ============================================================
+
+services:
+
+  # ─────────────────────────────────────────────
+  # FASE 1 — Banco de Dados
+  # ─────────────────────────────────────────────
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: nfe-postgres
+    restart: unless-stopped
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: nfe_user
+      POSTGRES_PASSWORD: nfe_secret
+      POSTGRES_DB: nfe_db
+    volumes:
+      - nfe_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nfe_user -d nfe_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────────
+  # FASE 2 — Mensageria (Kafka)
+  # ─────────────────────────────────────────────
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    container_name: nfe-zookeeper
+    restart: unless-stopped
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    healthcheck:
+      test: ["CMD", "echo", "ruok", "|", "nc", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: nfe-kafka
+    restart: unless-stopped
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+  kafka-init:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: nfe-kafka-init
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command: |
+      "
+      echo '>>> Criando tópicos Kafka...'
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --topic nfe.emitida --partitions 3 --replication-factor 1
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --topic nfe.processada --partitions 3 --replication-factor 1
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --topic nfe.emitida.dlq --partitions 1 --replication-factor 1
+      echo '>>> Tópicos criados:'
+      kafka-topics --list --bootstrap-server kafka:29092
+      "
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: nfe-kafka-ui
+    restart: unless-stopped
+    ports:
+      - "8091:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: nfe-local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  # ─────────────────────────────────────────────
+  # FASE 4 — Object Storage (PDFs)
+  # ─────────────────────────────────────────────
+
+  minio:
+    image: minio/minio:latest
+    container_name: nfe-minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    command: server /data --console-address ":9001"
+    volumes:
+      - nfe_minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: nfe-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command: |
+      "
+      mc alias set nfe http://minio:9000 minioadmin minioadmin123
+      mc mb --ignore-existing nfe/nfe-pdfs
+      mc anonymous set download nfe/nfe-pdfs
+      echo '>>> Bucket nfe-pdfs criado com sucesso'
+      "
+
+  # ─────────────────────────────────────────────
+  # FASE 5 — Rate Limiting (Redis)
+  # ─────────────────────────────────────────────
+
+  redis:
+    image: redis:7-alpine
+    container_name: nfe-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────────
+  # FASE 7 — Observabilidade
+  # ─────────────────────────────────────────────
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: nfe-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - nfe_prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=7d'
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: nfe-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin123
+    volumes:
+      - nfe_grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
+volumes:
+  nfe_postgres_data:
+  nfe_minio_data:
+  nfe_prometheus_data:
+  nfe_grafana_data:
