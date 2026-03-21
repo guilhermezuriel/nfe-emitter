@@ -3,7 +3,7 @@ package com.guilhermezuriel.nfe.commons.dto;
 
 import com.guilhermezuriel.nfe.commons.domain.enums.NaturezaOperacao;
 import com.guilhermezuriel.nfe.commons.domain.enums.NfeStatus;
-import com.nfe.commons.dto.EmpresaDTO;
+
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;

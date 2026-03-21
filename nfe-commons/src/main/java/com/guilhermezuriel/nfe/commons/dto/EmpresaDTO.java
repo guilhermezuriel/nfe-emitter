@@ -1,7 +1,6 @@
-package com.nfe.commons.dto;
+package com.guilhermezuriel.nfe.commons.dto;
 
 import com.guilhermezuriel.nfe.commons.domain.enums.RegimeTributario;
-import com.nfe.commons.domain.RegimeTributario;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
