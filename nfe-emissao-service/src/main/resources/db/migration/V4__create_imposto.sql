@@ -1,4 +1,4 @@
-CREATE TABLE imposto (
+CREATE TABLE nfe_emitter.imposto (
                          id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                          nfe_item_id     UUID          NOT NULL,
 
@@ -24,11 +24,11 @@ CREATE TABLE imposto (
 
                          created_at      TIMESTAMP     NOT NULL DEFAULT now(),
 
-                         CONSTRAINT fk_imposto_item FOREIGN KEY (nfe_item_id) REFERENCES nfe_item(id) ON DELETE CASCADE,
+                         CONSTRAINT fk_imposto_item FOREIGN KEY (nfe_item_id) REFERENCES nfe_emitter.nfe_item(id) ON DELETE CASCADE,
                          CONSTRAINT uk_imposto_item UNIQUE (nfe_item_id)
 );
 
-CREATE INDEX idx_imposto_item ON imposto (nfe_item_id);
+CREATE INDEX idx_imposto_item ON nfe_emitter.imposto (nfe_item_id);
 
-COMMENT ON TABLE imposto IS 'Impostos calculados pelo Spring Batch para cada item da NF-e';
-COMMENT ON COLUMN imposto.icms_aliquota IS 'Percentual: 18% interno, 7% ou 12% interestadual';
+COMMENT ON TABLE nfe_emitter.imposto IS 'Impostos calculados pelo Spring Batch para cada item da NF-e';
+COMMENT ON COLUMN nfe_emitter.imposto.icms_aliquota IS 'Percentual: 18% interno, 7% ou 12% interestadual';

@@ -1,8 +1,8 @@
-CREATE TABLE nfe (
+CREATE TABLE nfe_emitter.nfe (
                      id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                      numero                  BIGINT       NOT NULL,
                      serie                   INTEGER      NOT NULL DEFAULT 1,
-                     chave_acesso            CHAR(44)     NOT NULL,
+                     chave_acesso            VARCHAR(44)  NOT NULL,
                      data_emissao            TIMESTAMP    NOT NULL,
                      data_processamento      TIMESTAMP,
                      natureza_operacao       VARCHAR(30)  NOT NULL,
@@ -17,17 +17,17 @@ CREATE TABLE nfe (
 
                      CONSTRAINT uk_nfe_chave_acesso  UNIQUE (chave_acesso),
                      CONSTRAINT uk_nfe_numero_serie  UNIQUE (numero, serie),
-                     CONSTRAINT fk_nfe_emitente      FOREIGN KEY (emitente_id)      REFERENCES empresa(id),
-                     CONSTRAINT fk_nfe_destinatario  FOREIGN KEY (destinatario_id)  REFERENCES empresa(id),
+                     CONSTRAINT fk_nfe_emitente      FOREIGN KEY (emitente_id)      REFERENCES nfe_emitter.empresa(id),
+                     CONSTRAINT fk_nfe_destinatario  FOREIGN KEY (destinatario_id)  REFERENCES nfe_emitter.empresa(id),
                      CONSTRAINT ck_nfe_status        CHECK (status IN ('PENDENTE','PROCESSADA','PDF_GERADO','CANCELADA','ERRO'))
 );
 
-CREATE INDEX idx_nfe_status          ON nfe (status);
-CREATE INDEX idx_nfe_emitente        ON nfe (emitente_id);
-CREATE INDEX idx_nfe_destinatario    ON nfe (destinatario_id);
-CREATE INDEX idx_nfe_data_emissao    ON nfe (data_emissao);
-CREATE INDEX idx_nfe_cnpj_status     ON nfe (emitente_id, status);
+CREATE INDEX idx_nfe_status          ON nfe_emitter.nfe (status);
+CREATE INDEX idx_nfe_emitente        ON nfe_emitter.nfe (emitente_id);
+CREATE INDEX idx_nfe_destinatario    ON nfe_emitter.nfe (destinatario_id);
+CREATE INDEX idx_nfe_data_emissao    ON nfe_emitter.nfe (data_emissao);
+CREATE INDEX idx_nfe_cnpj_status     ON nfe_emitter.nfe (emitente_id, status);
 
-COMMENT ON TABLE nfe IS 'Notas Fiscais Eletrônicas emitidas no sistema';
-COMMENT ON COLUMN nfe.chave_acesso IS 'Chave de 44 dígitos no padrão SEFAZ';
-COMMENT ON COLUMN nfe.status IS 'PENDENTE → PROCESSADA → PDF_GERADO | CANCELADA | ERRO';
+COMMENT ON TABLE nfe_emitter.nfe IS 'Notas Fiscais Eletrônicas emitidas no sistema';
+COMMENT ON COLUMN nfe_emitter.nfe.chave_acesso IS 'Chave de 44 dígitos no padrão SEFAZ';
+COMMENT ON COLUMN nfe_emitter.nfe.status IS 'PENDENTE → PROCESSADA → PDF_GERADO | CANCELADA | ERRO';
